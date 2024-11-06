@@ -31,7 +31,8 @@ async def get_large_asset(chunks: int = 1):
     """
     if os.path.exists(ASSET_PATH):
         large_asset_size = os.path.getsize(ASSET_PATH)
+        chunk_size = int(large_asset_size/chunks)
         # Create a streaming response with the generator that sends chunks
-        return StreamingResponse(generate_file_chunks(ASSET_PATH, chunk_size=(large_asset_size/chunks), delay=1), headers={"content-type": "text", "cache-control": "max-age=3600"})
+        return StreamingResponse(generate_file_chunks(ASSET_PATH, chunk_size=chunk_size, delay=1), headers={"content-type": "text", "cache-control": "max-age=3600"})
     else:
         return {"error": "File not found"}
