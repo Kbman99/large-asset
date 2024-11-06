@@ -24,7 +24,7 @@ async def generate_file_chunks(file_path, chunk_size=1024, delay=1):
         print(f"Error reading file: {e}")
 
 @app.get("/large_asset.txt")
-async def get_large_asset(chunks: int = 0):
+async def get_large_asset(chunks: int = 1):
     """
     Endpoint to serve the file in chunks with a delay between each chunk.
     This simulates serving a file slowly (1 second per chunk).
