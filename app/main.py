@@ -23,26 +23,30 @@ async def generate_file_chunks(file_path, chunk_size=1024, delay=1):
     except Exception as e:
         print(f"Error reading file: {e}")
 
-@app.get("/large_asset_chunked.txt")
-async def get_large_asset_chunked(chunks: int = 1):
+@app.get("/chunked/{filename}")
+async def get_large_asset_chunked(filename: str, chunks: int = 1):
     """
     Endpoint to serve the file in chunks with a delay between each chunk.
     This simulates serving a file slowly (1 second per chunk).
     """
-    if os.path.exists(ASSET_PATH):
-        large_asset_size = os.path.getsize(ASSET_PATH)
+    file_path = f"./static/{filename}"
+
+    if os.path.exists(file_path):
+        large_asset_size = os.path.getsize(file_path)
         chunk_size = int(large_asset_size/chunks)
         # Create a streaming response with the generator that sends chunks
-        return StreamingResponse(generate_file_chunks(ASSET_PATH, chunk_size=chunk_size, delay=1), headers={"content-type": "text", "cache-control": "max-age=3600"})
+        return StreamingResponse(generate_file_chunks(file_path, chunk_size=chunk_size, delay=1), headers={"content-type": "text", "cache-control": "max-age=3600"})
     else:
-        return {"error": "File not found"}
+        return {"error": f"File {filename} not found"}
 
-@app.get("/large_asset.txt")
-async def get_large_asset():
+@app.get("/plain/{filename}")
+async def get_large_asset_plain(filename: str):
     """
     Endpoint to serve a plaintext response containing the large_asset.txt
     """
-    if os.path.exists(ASSET_PATH):
+    file_path = f"./static/{filename}"
+
+    if os.path.exists(file_path):
         content = None
         with open(ASSET_PATH, 'rb') as file:
             content = file.read()
@@ -50,9 +54,11 @@ async def get_large_asset():
     else:
         return {"error": "File not found"}
     
-@app.get("/large_asset_range.txt")
-async def get_file(request: Request):
-    file_path = ASSET_PATH
+@app.get("/range/{filename}")
+async def get_file(filename: str, request: Request, delay: int = 0):
+    print("headers: {}".format(request.headers), flush=True)
+
+    file_path = f"./static/{filename}"
     
     # Check if file exists
     if not os.path.exists(file_path):
@@ -64,6 +70,9 @@ async def get_file(request: Request):
     # Get Range header from the request, if present
     range_header = request.headers.get('Range', None)
     
+    if delay > 0:
+        await asyncio.sleep(delay)
+
     if range_header:
         # Parse Range header
         byte_range = range_header.strip().lower()
@@ -95,6 +104,7 @@ async def get_file(request: Request):
                 "Accept-Ranges": "bytes",
                 "Content-Length": str(end - start + 1),
                 "Cache-Control": "max-age=3600",
+                "Delay": str(delay),
             }
             return StreamingResponse(file_generator(), headers=headers, status_code=206)
     
