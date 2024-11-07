@@ -5,9 +5,6 @@ import asyncio
 
 app = FastAPI()
 
-# Path to the large asset (adjust the file path as needed)
-ASSET_PATH = "large_asset.txt"
-
 async def generate_file_chunks(file_path, chunk_size=1024, delay=1):
     """
     A generator that reads the file in chunks and yields each chunk with a delay.
@@ -48,7 +45,7 @@ async def get_large_asset_plain(filename: str):
 
     if os.path.exists(file_path):
         content = None
-        with open(ASSET_PATH, 'rb') as file:
+        with open(file_path, 'rb') as file:
             content = file.read()
         return PlainTextResponse(content, headers={"content-type": "text", "cache-control": "max-age=3600"})
     else:
