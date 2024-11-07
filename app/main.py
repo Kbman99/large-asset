@@ -1,5 +1,5 @@
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse, PlainTextResponse
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import StreamingResponse, PlainTextResponse, FileResponse
 import os
 import asyncio
 
@@ -49,3 +49,54 @@ async def get_large_asset():
         return PlainTextResponse(content, headers={"content-type": "text", "cache-control": "max-age=3600"})
     else:
         return {"error": "File not found"}
+    
+@app.get("/large_asset_range.txt")
+async def get_file(request: Request):
+    file_path = ASSET_PATH
+    
+    # Check if file exists
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Get file size
+    file_size = os.path.getsize(file_path)
+    
+    # Get Range header from the request, if present
+    range_header = request.headers.get('Range', None)
+    
+    if range_header:
+        # Parse Range header
+        byte_range = range_header.strip().lower()
+        if byte_range.startswith("bytes="):
+            byte_range = byte_range[6:]
+            start, end = byte_range.split("-")
+            
+            # If the start is missing, set it to the beginning of the file
+            start = int(start) if start else 0
+            
+            # If the end is missing, set it to the end of the file
+            end = int(end) if end else file_size - 1
+            
+            if start >= file_size:
+                raise HTTPException(status_code=416, detail="Range Not Satisfiable")
+            
+            # Adjust the end byte to not exceed the file size
+            end = min(end, file_size - 1)
+            
+            # Open the file and create a generator to yield the range
+            def file_generator():
+                with open(file_path, "rb") as f:
+                    f.seek(start)
+                    yield f.read(end - start + 1)
+            
+            # Set status code to 206 (Partial Content)
+            headers = {
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(end - start + 1),
+                "Cache-Control": "max-age=3600",
+            }
+            return StreamingResponse(file_generator(), headers=headers, status_code=206)
+    
+    # If no Range header, return the full file
+    return FileResponse(file_path)
